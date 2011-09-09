@@ -1,5 +1,14 @@
+/*
+ * DingAtMe v0.2
+ * To compile: gcc -Wl,-subsystem,windows -lwinmm -o dingatme dingatme.c
+ * To exit: Press Enter 5 times
+ */
+
 #define _WIN32_WINNT 0x0501
+#define DEBUG 0
+#if defined(DEBUG) && DEBUG
 #include <stdio.h>
+#endif
 #include <stdlib.h>
 #include <windows.h>
 
@@ -84,6 +93,7 @@ void RegisterKeyboardForRawInput(HWND hwndTarget)
 
 void HandleInput(WPARAM wParam, LPARAM lParam)
 {
+	static int consecutiveEnterPresses = 0;
     UINT dwSize;
     RAWINPUT *raw;
     GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
@@ -94,18 +104,29 @@ void HandleInput(WPARAM wParam, LPARAM lParam)
     	exit(EXIT_FAILURE);
     if (raw->header.dwType == RIM_TYPEKEYBOARD)
     {
-    	switch (raw->data.keyboard.VKey) {
-    		case VK_RETURN:
-    			PlaySound("SystemQuestion", NULL, SND_ASYNC | SND_NOSTOP | SND_NOWAIT );
+    	if ((raw->data.keyboard.Flags & RI_KEY_BREAK) == RI_KEY_BREAK) {
+			switch (raw->data.keyboard.VKey) {
+				case VK_RETURN:
+					PlaySound("SystemQuestion", NULL, SND_ASYNC | SND_NOSTOP | SND_NOWAIT );
+					consecutiveEnterPresses++;
+					break;
+
+				default:
+					consecutiveEnterPresses = 0;
+					break;
+			}
     	}
-    	/*printf(" Kbd: make=%04x Flags:%04x Reserved:%04x ExtraInformation:%08x, msg=%04x VK=%04x \n",
-    	            raw->data.keyboard.MakeCode,
+    	if (consecutiveEnterPresses > 5)
+    		exit(EXIT_SUCCESS);
+#if defined(DEBUG) && DEBUG
+    	printf("%i Kbd: make=%04x Flags:%04x Reserved:%04x ExtraInformation:%08x, msg=%04x VK=%04x \n",
+    				consecutiveEnterPresses,
+    				raw->data.keyboard.MakeCode,
     	            raw->data.keyboard.Flags,
     	            raw->data.keyboard.Reserved,
     	            raw->data.keyboard.ExtraInformation,
     	            raw->data.keyboard.Message,
     	            raw->data.keyboard.VKey);
-    	            */
-
+#endif
     }
 }
